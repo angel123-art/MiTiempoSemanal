@@ -1,13 +1,11 @@
-
 package com.senati.mitiemposemanal.mitiemposemanal
 
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
-
 class DBHelper(context: Context) :
-    SQLiteOpenHelper(context, "MiTiempoSemanal.db", null, 1) {
+    SQLiteOpenHelper(context, "MiTiempoSemanal.db", null, 2) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
@@ -32,21 +30,47 @@ class DBHelper(context: Context) :
             )
         """.trimIndent())
 
-        listOf("Estudio", "Trabajo", "Descanso", "Ocio").forEach {
-                nombre ->
+        listOf("Estudio", "Trabajo", "Descanso", "Ocio").forEach { nombre ->
             val valores = ContentValues().apply {
                 put("nombre", nombre)
             }
             db.insert("categoria", null, valores)
         }
+
+        crearTablaEvento(db)
     }
 
+    // TABLA DE EVENTOS: SPRINT 2
+    private fun crearTablaEvento(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE evento (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tarea_id INTEGER NOT NULL,
+                inicio TEXT NOT NULL,
+                fin TEXT,
+                duracion_segundos INTEGER,
+                FOREIGN KEY(tarea_id)
+                    REFERENCES tarea(id)
+            )
+        """.trimIndent())
+
+        // Impide que haya más de un evento sin finalizar.
+        db.execSQL("""
+            CREATE UNIQUE INDEX indice_un_evento_activo
+            ON evento(fin)
+            WHERE fin IS NULL
+        """.trimIndent())
+    }
+
+    // ACTUALIZACIÓN SIN ELIMINAR LOS DATOS DEL SPRINT 1
     override fun onUpgrade(
         db: SQLiteDatabase,
         oldVersion: Int,
         newVersion: Int
     ) {
-        // Reservado para futuras actualizaciones de la base de datos.
+        if (oldVersion < 2) {
+            crearTablaEvento(db)
+        }
     }
 
     // LISTAR CATEGORÍAS
@@ -89,7 +113,10 @@ class DBHelper(context: Context) :
         }
 
         return writableDatabase.update(
-            "categoria", valores, "id = ?", arrayOf(id.toString())
+            "categoria",
+            valores,
+            "id = ?",
+            arrayOf(id.toString())
         ) > 0
     }
 
@@ -108,7 +135,9 @@ class DBHelper(context: Context) :
         if (cantidad > 0) return false
 
         return db.delete(
-            "categoria", "id = ?", arrayOf(id.toString())
+            "categoria",
+            "id = ?",
+            arrayOf(id.toString())
         ) > 0
     }
 
@@ -122,6 +151,7 @@ class DBHelper(context: Context) :
             INNER JOIN categoria c ON c.id = t.categoria_id
             ORDER BY t.nombre
         """.trimIndent(), null).use { cursor ->
+
             while (cursor.moveToNext()) {
                 resultado.add(
                     Triple(
@@ -164,14 +194,149 @@ class DBHelper(context: Context) :
         }
 
         return writableDatabase.update(
-            "tarea", valores, "id = ?", arrayOf(id.toString())
+            "tarea",
+            valores,
+            "id = ?",
+            arrayOf(id.toString())
         ) > 0
     }
 
     // ELIMINAR TAREA
     fun eliminarTarea(id: Int): Boolean {
         return writableDatabase.delete(
-            "tarea", "id = ?", arrayOf(id.toString())
+            "tarea",
+            "id = ?",
+            arrayOf(id.toString())
         ) > 0
     }
+
+    // BUSCAR TAREAS POR NOMBRE: SPRINT 2
+    fun buscarTareas(texto: String): List<Triple<Int, String, String>> {
+        val resultado = mutableListOf<Triple<Int, String, String>>()
+
+        if (texto.trim().length < 2) return resultado
+
+        readableDatabase.rawQuery("""
+            SELECT t.id, t.nombre, c.nombre
+            FROM tarea t
+            INNER JOIN categoria c ON c.id = t.categoria_id
+            WHERE t.nombre LIKE '%' || ? || '%' COLLATE NOCASE
+            ORDER BY t.nombre
+        """.trimIndent(), arrayOf(texto.trim())).use { cursor ->
+
+            while (cursor.moveToNext()) {
+                resultado.add(
+                    Triple(
+                        cursor.getInt(0),
+                        cursor.getString(1),
+                        cursor.getString(2)
+                    )
+                )
+            }
+        }
+
+        return resultado
+    }
+
+    // INICIAR EVENTO
+    // inicio debe contener la fecha y hora completas del celular.
+    fun iniciarEvento(tareaId: Int, inicio: String): Long {
+        val valores = ContentValues().apply {
+            put("tarea_id", tareaId)
+            put("inicio", inicio)
+            putNull("fin")
+            putNull("duracion_segundos")
+        }
+
+        return writableDatabase.insert("evento", null, valores)
+    }
+
+    // OBTENER EL EVENTO ACTIVO
+    fun obtenerEventoActivo(): Triple<Int, Int, String>? {
+        readableDatabase.rawQuery("""
+            SELECT id, tarea_id, inicio
+            FROM evento
+            WHERE fin IS NULL
+            ORDER BY id DESC
+            LIMIT 1
+        """.trimIndent(), null).use { cursor ->
+
+            if (cursor.moveToFirst()) {
+                return Triple(
+                    cursor.getInt(0),
+                    cursor.getInt(1),
+                    cursor.getString(2)
+                )
+            }
+        }
+
+        return null
+    }
+
+    // FINALIZAR EVENTO Y GUARDAR SU DURACIÓN
+    fun finalizarEvento(
+        eventoId: Int,
+        fin: String,
+        duracionSegundos: Long
+    ): Boolean {
+        if (duracionSegundos < 0) return false
+
+        val valores = ContentValues().apply {
+            put("fin", fin)
+            put("duracion_segundos", duracionSegundos)
+        }
+
+        return writableDatabase.update(
+            "evento",
+            valores,
+            "id = ? AND fin IS NULL",
+            arrayOf(eventoId.toString())
+        ) > 0
+    }
+
+    // LISTAR EVENTOS CON SU TAREA Y CATEGORÍA
+    fun obtenerEventos(): List<EventoRegistro> {
+        val resultado = mutableListOf<EventoRegistro>()
+
+        readableDatabase.rawQuery("""
+            SELECT e.id, e.tarea_id, t.nombre, c.nombre,
+                   e.inicio, e.fin, e.duracion_segundos
+            FROM evento e
+            INNER JOIN tarea t ON t.id = e.tarea_id
+            INNER JOIN categoria c ON c.id = t.categoria_id
+            ORDER BY e.id DESC
+        """.trimIndent(), null).use { cursor ->
+
+            while (cursor.moveToNext()) {
+                resultado.add(
+                    EventoRegistro(
+                        id = cursor.getInt(0),
+                        tareaId = cursor.getInt(1),
+                        nombreTarea = cursor.getString(2),
+                        nombreCategoria = cursor.getString(3),
+                        inicio = cursor.getString(4),
+                        fin = if (cursor.isNull(5)) null else cursor.getString(5),
+                        duracionSegundos = if (cursor.isNull(6)) {
+                            null
+                        } else {
+                            cursor.getLong(6)
+                        }
+                    )
+                )
+            }
+        }
+
+        return resultado
+    }
 }
+
+// MODELO PARA MOSTRAR LOS EVENTOS
+data class EventoRegistro(
+    val id: Int,
+    val tareaId: Int,
+    val nombreTarea: String,
+    val nombreCategoria: String,
+    val inicio: String,
+    val fin: String?,
+    val duracionSegundos: Long?
+)

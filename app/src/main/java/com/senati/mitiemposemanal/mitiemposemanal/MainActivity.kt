@@ -18,28 +18,24 @@ class MainActivity : AppCompatActivity() {
 
         db = DBHelper(this)
 
-        // Crear la pantalla principal
         val pantalla = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 32, 24, 24)
         }
 
-        // Título
         pantalla.addView(TextView(this).apply {
             text = "MiTiempoSemanal"
             textSize = 28f
             gravity = Gravity.CENTER
         })
 
-        // Nombre y versión
         pantalla.addView(TextView(this).apply {
-            text = "Angel Espinoza · v0.1.0 (1)"
+            text = "Angel Espinoza · v0.2.0 (2)"
             textSize = 16f
             gravity = Gravity.CENTER
             setPadding(0, 12, 0, 24)
         })
 
-        // Botón para registrar categorías
         pantalla.addView(Button(this).apply {
             text = "+ Nueva categoría"
             setOnClickListener {
@@ -47,7 +43,6 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        // Botón para abrir la pantalla de tareas
         pantalla.addView(Button(this).apply {
             text = "Mis tareas"
             setOnClickListener {
@@ -60,19 +55,29 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        // Título de la lista de categorías
+        // NUEVO: ACCESO A EVENTOS DEL SPRINT 2
+        pantalla.addView(Button(this).apply {
+            text = "Eventos"
+            setOnClickListener {
+                startActivity(
+                    Intent(
+                        this@MainActivity,
+                        EventosActivity::class.java
+                    )
+                )
+            }
+        })
+
         pantalla.addView(TextView(this).apply {
             text = "Mis categorías"
             textSize = 22f
             setPadding(0, 24, 0, 12)
         })
 
-        // Contenedor de categorías
         contenedor = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
 
-        // Lista desplazable
         val scroll = ScrollView(this)
         scroll.addView(contenedor)
 
@@ -92,7 +97,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
 
-        // Actualizar la lista al regresar a la pantalla principal
         if (::db.isInitialized && ::contenedor.isInitialized) {
             cargarCategorias()
         }
@@ -121,7 +125,6 @@ class MainActivity : AppCompatActivity() {
                 )
             })
 
-            // Botón editar
             fila.addView(Button(this).apply {
                 text = "Editar"
                 setOnClickListener {
@@ -129,7 +132,6 @@ class MainActivity : AppCompatActivity() {
                 }
             })
 
-            // Botón eliminar
             fila.addView(Button(this).apply {
                 text = "Eliminar"
                 setOnClickListener {
@@ -170,7 +172,6 @@ class MainActivity : AppCompatActivity() {
 
                 if (guardado) {
                     cargarCategorias()
-
                     Toast.makeText(
                         this,
                         "Categoría guardada correctamente",
@@ -202,7 +203,6 @@ class MainActivity : AppCompatActivity() {
 
                 if (db.eliminarCategoria(id)) {
                     cargarCategorias()
-
                     Toast.makeText(
                         this,
                         "Categoría eliminada",
