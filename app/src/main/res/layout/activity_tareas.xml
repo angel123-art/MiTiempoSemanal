@@ -1,0 +1,59 @@
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="#F5F7FB">
+
+    <!-- Título de la pantalla -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Mis tareas"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="#183153"
+        android:gravity="center"
+        android:padding="12dp" />
+
+    <!-- Botón para registrar una tarea -->
+    <Button
+        android:id="@+id/btnNuevaTarea"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="+ Nueva tarea" />
+
+    <!-- Subtítulo -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Actividades registradas"
+        android:textSize="19sp"
+        android:textStyle="bold"
+        android:textColor="#183153"
+        android:paddingTop="18dp"
+        android:paddingBottom="10dp" />
+
+    <!-- Lista desplazable de tareas -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:id="@+id/contenedorTareas"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+    </ScrollView>
+
+    <!-- Regresar a la pantalla principal -->
+    <Button
+        android:id="@+id/btnVolver"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Volver al inicio" />
+
+</LinearLayout>
