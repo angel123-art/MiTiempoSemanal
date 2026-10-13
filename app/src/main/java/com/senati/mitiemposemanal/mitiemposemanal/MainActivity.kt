@@ -30,7 +30,7 @@ class MainActivity : AppCompatActivity() {
         })
 
         pantalla.addView(TextView(this).apply {
-            text = "Angel Espinoza · v0.3.0 (3)"
+            text = "Angel Espinoza · v1.0.0 (4)"
             textSize = 16f
             gravity = Gravity.CENTER
             setPadding(0, 12, 0, 24)
@@ -67,7 +67,17 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         })
-
+        pantalla.addView(Button(this).apply {
+            text = "Reportes"
+            setOnClickListener {
+                startActivity(
+                    Intent(
+                        this@MainActivity,
+                        ReportesActivity::class.java
+                    )
+                )
+            }
+        })
         pantalla.addView(TextView(this).apply {
             text = "Mis categorías"
             textSize = 22f
@@ -92,6 +102,7 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(pantalla)
         cargarCategorias()
+        db.cerrarSemanasPendientes(java.time.LocalDate.now())
     }
 
     override fun onResume() {
@@ -99,6 +110,7 @@ class MainActivity : AppCompatActivity() {
 
         if (::db.isInitialized && ::contenedor.isInitialized) {
             cargarCategorias()
+            db.cerrarSemanasPendientes(java.time.LocalDate.now())
         }
     }
 

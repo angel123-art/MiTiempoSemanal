@@ -32,6 +32,9 @@
         <activity
             android:name=".EventosActivity"
             android:exported="false" />
+        <activity
+            android:name=".ReportesActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
