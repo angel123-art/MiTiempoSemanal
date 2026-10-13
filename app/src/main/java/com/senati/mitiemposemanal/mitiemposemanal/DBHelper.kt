@@ -328,6 +328,46 @@ class DBHelper(context: Context) :
 
         return resultado
     }
+    fun obtenerResumenSemanal(
+        inicioSemana: String,
+        inicioProximaSemana: String
+    ): List<ResumenCategoria> {
+
+        val resultado = mutableListOf<ResumenCategoria>()
+
+        readableDatabase.rawQuery(
+            """
+            SELECT
+                c.id,
+                c.nombre,
+                COALESCE(SUM(e.duracion_segundos), 0) AS total_segundos
+            FROM categoria c
+            LEFT JOIN tarea t
+                ON t.categoria_id = c.id
+            LEFT JOIN evento e
+                ON e.tarea_id = t.id
+                AND e.fin IS NOT NULL
+                AND e.inicio >= ?
+                AND e.inicio < ?
+            GROUP BY c.id, c.nombre
+            ORDER BY c.nombre
+            """.trimIndent(),
+            arrayOf(inicioSemana, inicioProximaSemana)
+        ).use { cursor ->
+
+            while (cursor.moveToNext()) {
+                resultado.add(
+                    ResumenCategoria(
+                        categoriaId = cursor.getInt(0),
+                        nombreCategoria = cursor.getString(1),
+                        totalSegundos = cursor.getLong(2)
+                    )
+                )
+            }
+        }
+
+        return resultado
+    }
 }
 
 // MODELO PARA MOSTRAR LOS EVENTOS
@@ -340,3 +380,10 @@ data class EventoRegistro(
     val fin: String?,
     val duracionSegundos: Long?
 )
+
+data class ResumenCategoria(
+    val categoriaId: Int,
+    val nombreCategoria: String,
+    val totalSegundos: Long
+)
+

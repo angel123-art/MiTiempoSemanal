@@ -30,7 +30,7 @@ class MainActivity : AppCompatActivity() {
         })
 
         pantalla.addView(TextView(this).apply {
-            text = "Angel Espinoza · v0.2.0 (2)"
+            text = "Angel Espinoza · v0.3.0 (3)"
             textSize = 16f
             gravity = Gravity.CENTER
             setPadding(0, 12, 0, 24)

@@ -19,9 +19,13 @@ import androidx.appcompat.app.AppCompatActivity
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-
+import android.widget.ProgressBar
+import java.time.LocalDate
+import java.time.DayOfWeek
+import java.util.Locale
 class EventosActivity : AppCompatActivity() {
-
+    private lateinit var contenedorResumenSemanal: LinearLayout
+    private lateinit var textoSemana: TextView
     private lateinit var db: DBHelper
     private lateinit var cajaBusqueda: EditText
     private lateinit var textoCategoria: TextView
@@ -58,6 +62,27 @@ class EventosActivity : AppCompatActivity() {
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 16)
         })
+        // PANEL SEMANAL - SPRINT 3
+        textoSemana = TextView(this).apply {
+            textSize = 16f
+            setPadding(0, 8, 0, 8)
+        }
+
+        pantalla.addView(textoSemana)
+
+        contenedorResumenSemanal = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(12, 12, 12, 12)
+            setBackgroundColor(0xFFFFFFFF.toInt())
+        }
+
+        pantalla.addView(
+            contenedorResumenSemanal,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
 
         cajaBusqueda = EditText(this).apply {
             hint = "Buscar tarea (mínimo 2 letras)"
@@ -161,14 +186,15 @@ class EventosActivity : AppCompatActivity() {
 
         actualizarEstado()
         cargarEventos()
+        actualizarResumenSemanal()
     }
-
     override fun onResume() {
         super.onResume()
 
         if (::db.isInitialized && ::textoEstado.isInitialized) {
             actualizarEstado()
             cargarEventos()
+            actualizarResumenSemanal()
         }
     }
 
@@ -425,6 +451,7 @@ class EventosActivity : AppCompatActivity() {
 
         actualizarEstado()
         cargarEventos()
+        actualizarResumenSemanal()
     }
 
     // MOSTRAR EL EVENTO ACTIVO Y HABILITAR LOS BOTONES
@@ -509,4 +536,99 @@ class EventosActivity : AppCompatActivity() {
 
         return "${horas}h ${minutos}m ${seg}s"
     }
+
+
+
+    private fun actualizarResumenSemanal() {
+        if (!::contenedorResumenSemanal.isInitialized) return
+
+        contenedorResumenSemanal.removeAllViews()
+
+        // La semana comienza el lunes a las 00:00.
+        val hoy = LocalDate.now()
+        val lunes = hoy.with(DayOfWeek.MONDAY)
+        val proximoLunes = lunes.plusWeeks(1)
+
+        val formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+
+        textoSemana.text =
+            "Semana ${lunes.format(formatoFecha)} – " +
+                    "${proximoLunes.minusDays(1).format(formatoFecha)}"
+
+        val inicioSemana = "${lunes}T00:00:00"
+        val inicioProximaSemana = "${proximoLunes}T00:00:00"
+
+        // La consulta SQL agrupa los eventos finalizados por categoría.
+        val resumen = db.obtenerResumenSemanal(
+            inicioSemana,
+            inicioProximaSemana
+        )
+
+        val segundosSemana = 7L * 24 * 60 * 60
+        val totalRegistrado = resumen.sumOf { it.totalSegundos }
+        val segundosSinRegistrar =
+            (segundosSemana - totalRegistrado).coerceAtLeast(0L)
+
+        resumen.forEach { categoria ->
+            agregarFilaResumen(
+                nombre = categoria.nombreCategoria,
+                segundos = categoria.totalSegundos,
+                totalSemana = segundosSemana
+            )
+        }
+
+        agregarFilaResumen(
+            nombre = "Sin registrar",
+            segundos = segundosSinRegistrar,
+            totalSemana = segundosSemana
+        )
+    }
+
+    private fun agregarFilaResumen(
+        nombre: String,
+        segundos: Long,
+        totalSemana: Long
+    ) {
+        val porcentaje =
+            segundos.toDouble() / totalSemana.toDouble() * 100.0
+
+        val horas = segundos / 3600
+        val minutos = (segundos % 3600) / 60
+
+        val fila = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 8, 0, 8)
+        }
+
+        fila.addView(TextView(this).apply {
+            text = nombre
+            textSize = 16f
+        })
+
+        fila.addView(TextView(this).apply {
+            text = "${horas} h ${minutos} min · " +
+                    String.format(Locale.US, "%.1f", porcentaje) + " %"
+            textSize = 14f
+        })
+
+        val barra = ProgressBar(
+            this,
+            null,
+            android.R.attr.progressBarStyleHorizontal
+        ).apply {
+            max = 1000
+            progress = (porcentaje * 10).toInt().coerceIn(0, 1000)
+        }
+
+        fila.addView(
+            barra,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        contenedorResumenSemanal.addView(fila)
+    }
+
 }
